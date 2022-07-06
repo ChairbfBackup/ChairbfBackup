@@ -1,0 +1,65 @@
+# Version of the configuration file
+version: v1alpha1
+
+# Define the service that will be loaded in livecycle web interface
+web:
+  # Build section - defines how livecycle is going to build this project
+  build:
+    # List of environment variables to inject during build.
+    # When using Docker based build, these variables will inject as build arg
+    build_args:
+      # Environment Variable name
+      - name: MY_ENV_VAR
+        # Environment Variable Value
+        value: SOME_VALUE
+        # Whether the value of the environment variable is encrypted.
+        # See the section on secrets and variable encryption
+        encrypted: true
+    # Type of build definition, currently only Dockerfile is supported
+    type: Dockerfile
+    # Dockerfile build type configuration section
+    dockerfile:
+      # (Optional) path to Dockerfile, default to ./Dockerfile
+      path: ./Dockerfile
+      # (Optional) define/override Dockerfile contents.
+      # Can be use when project doesn't use Dockerfile
+      # or there's need for customization
+      contents: |
+        FROM node:14-buster as build
+        RUN npm install -g gatsby-cli
+        WORKDIR /app
+        COPY package.json yarn.lock ./
+        RUN yarn
+        COPY . .
+        RUN gatsby build
+
+  # Output section, for defining how the project
+  # is going to be published and run on livecycle.dev
+  output:
+    # Type of the output artifact, can be static or image
+    type: static
+    # Static output configuration section
+    static:
+      # Path section
+      path: /app/public
+    # Image output configuration for running the container
+    image: 
+      # Port of the container to expose the traffic on
+      defaultPort: 80
+
+  # Proxy section, for defining the behavior of the playground router
+  proxy:
+    # List of routing rules, these rules will
+    # evaluated in-order with priority to rules with force: true
+    rules:
+      # Matching of a url, can use regex and capture groups
+      - match: /api/(.*)
+        # Target url to redirect/rewrite to, can use
+        # replacement expression of captured groups
+        target: https://some_service.com/api/$1
+        # Action to return, can be redirect/rewrite, default: rewrite
+        action: rewrite
+        # Force the rule - when force is false, request first
+        # is handled by the playground service and only when there is 4xx error
+        # the request will be handled by this router rule
+        force: true
